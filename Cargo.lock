@@ -1,5 +1,5 @@
 [root]
-name = "vstest"
+name = "feedbackws"
 version = "0.1.0"
 dependencies = [
  "vst2 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",

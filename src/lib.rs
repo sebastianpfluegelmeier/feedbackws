@@ -13,10 +13,10 @@ struct FeedbackWS {
     waveshape_table: Vec<f32>,
 }
 
-impl Plugin for FeedbackWs {
+impl Plugin for FeedbackWS {
     fn get_info(&self) -> Info {
         Info {
-            name: "FeedbackWs".to_string(),
+            name: "FeedbackWS".to_string(),
             unique_id: 5432,
             ..Default::default()
         }
@@ -33,7 +33,7 @@ impl Plugin for FeedbackWs {
 
 }
 
-impl FeedbackWs {
+impl FeedbackWS {
     fn dsp_fn(&mut self, input: f32, left: bool) -> f32 {
         let neg_input = input < 0.0;
         let mut pipe = 0.0;
@@ -61,4 +61,4 @@ impl FeedbackWs {
     }
 }
 
-plugin_main!(FeedbackWs);
+plugin_main!(FeedbackWS);

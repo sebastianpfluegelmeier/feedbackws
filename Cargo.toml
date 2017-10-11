@@ -1,0 +1,11 @@
+[package]
+name = "vstest"
+version = "0.1.0"
+authors = ["Sebastian Pfluegelmeier <pfluegelmeier.s@gmx.at>"]
+
+[dependencies]
+vst2 = "0.0.1"
+
+[lib]
+name = "vstest"
+crate-type = ["dylib"]

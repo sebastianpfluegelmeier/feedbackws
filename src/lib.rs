@@ -5,7 +5,7 @@ use vst2::plugin::{Info, Plugin};
 use vst2::buffer::AudioBuffer;
 
 #[derive(Default)]
-struct VsTest {
+struct FeedbackWS {
     last_sample_l: f32,
     last_sample_r: f32,
     feedback: f32,
@@ -13,10 +13,10 @@ struct VsTest {
     waveshape_table: Vec<f32>,
 }
 
-impl Plugin for VsTest {
+impl Plugin for FeedbackWs {
     fn get_info(&self) -> Info {
         Info {
-            name: "VsTest".to_string(),
+            name: "FeedbackWs".to_string(),
             unique_id: 5432,
             ..Default::default()
         }
@@ -33,7 +33,7 @@ impl Plugin for VsTest {
 
 }
 
-impl VsTest {
+impl FeedbackWs {
     fn dsp_fn(&mut self, input: f32, left: bool) -> f32 {
         let neg_input = input < 0.0;
         let mut pipe = 0.0;
@@ -61,4 +61,4 @@ impl VsTest {
     }
 }
 
-plugin_main!(VsTest);
+plugin_main!(FeedbackWs);

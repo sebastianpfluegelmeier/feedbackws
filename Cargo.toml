@@ -1,5 +1,5 @@
 [package]
-name = "vstest"
+name = "feedbackws"
 version = "0.1.0"
 authors = ["Sebastian Pfluegelmeier <pfluegelmeier.s@gmx.at>"]
 
@@ -7,5 +7,5 @@ authors = ["Sebastian Pfluegelmeier <pfluegelmeier.s@gmx.at>"]
 vst2 = "0.0.1"
 
 [lib]
-name = "vstest"
+name = "feedbackws"
 crate-type = ["dylib"]

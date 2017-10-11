@@ -1,14 +1,17 @@
 #[macro_use]
 extern crate vst2;
 
-use vst2::plugin::{Info, Plugin};
+use vst2::plugin::{Info, Plugin, HostCallback};
 use vst2::buffer::AudioBuffer;
 
 #[derive(Default)]
 struct FeedbackWS {
     last_sample_l: f32,
     last_sample_r: f32,
+
     feedback: f32,
+    pow: f32,
+    
     waveshape_points: usize,
     waveshape_table: Vec<f32>,
 }
@@ -18,7 +21,27 @@ impl Plugin for FeedbackWS {
         Info {
             name: "FeedbackWS".to_string(),
             unique_id: 5432,
+
+            inputs: 2,
+            outputs: 2,
+            parameters: 2,
             ..Default::default()
+        }
+    }
+
+    fn get_parameter(&self, index: i32) -> f32 {
+        match index {
+            0 => self.feedback,
+            1 => self.pow,
+            _ => 0.0,
+        }
+    }
+
+    fn set_parameter(&mut self, index: i32, value: f32) {
+        match index {
+            0 => self.feedback = value,
+            1 => self.pow = value,
+            _ => (),
         }
     }
 
@@ -31,15 +54,45 @@ impl Plugin for FeedbackWS {
         }
     }
 
+    fn init(&mut self) {
+        self.last_sample_l = 0.0;
+        self.last_sample_r = 0.0;
+        self.feedback = 0.8;
+        self.pow = 2.0;
+        self.waveshape_points = 1000;
+        self.waveshape_table = vec![0.0; self.waveshape_points];
+        for i in 0..self.waveshape_points {
+            self.waveshape_table[i] = 
+            {
+                let x = i as f32 / self.waveshape_points as f32;
+                x.powf(self.pow)
+            };
+                
+        }
+    }
+
+    fn new(_: HostCallback) -> Self {
+        let wsp = 100;
+        FeedbackWS {
+            last_sample_l: 0.0,
+            last_sample_r: 0.0,
+            feedback: 0.5,
+            pow: 2.0,
+            waveshape_points: wsp,
+            waveshape_table: vec![0.0; wsp],
+        }
+    }
 }
 
 impl FeedbackWS {
     fn dsp_fn(&mut self, input: f32, left: bool) -> f32 {
         let neg_input = input < 0.0;
-        let mut pipe = 0.0;
+        let mut pipe = input;
         pipe += if left {self.last_sample_l} else {self.last_sample_r} * self.feedback;
         pipe = if neg_input {-pipe} else {pipe};
-        pipe = self.waveshape(pipe, left);
+        if pipe <= 1.0 && pipe > 0.0 {
+            pipe = self.waveshape(pipe, left);
+        }
         pipe = if neg_input {-pipe} else {pipe};
         if left {
             self.last_sample_l = pipe;
@@ -50,15 +103,15 @@ impl FeedbackWS {
     }
 
     fn waveshape(&self, input: f32, left: bool) -> f32 {
-        let float_index: f32 = (input * self.waveshape_points as f32);
+        let float_index: f32 = input * (self.waveshape_points - 1) as f32;
         let floor_index: f32 = float_index.floor();
         let ceil_index:  f32 = float_index.ceil();
         let ceil_frac:   f32 = floor_index - float_index;
         let floor_frac:  f32 = 1.0 - floor_index;
         self.waveshape_table[floor_index as usize] * floor_frac + 
         self.waveshape_table[ceil_index  as usize] * ceil_frac
-
     }
+
 }
 
 plugin_main!(FeedbackWS);

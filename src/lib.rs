@@ -4,16 +4,26 @@ extern crate vst2;
 use vst2::plugin::{Info, Plugin, HostCallback};
 use vst2::buffer::AudioBuffer;
 
+static FUNCTIONS: &'static [fn (f32, f32) -> f32] =  &[analog_dist, sin_log];
+
+fn analog_dist(sig: f32, param:f32) -> f32 {
+        2.0 * (1.0/(1.0 + std::f32::consts::E.powf(-param * sig))) - 1.0
+}
+
+fn sin_log(sig: f32, param:f32) -> f32 {
+    (param*(sig + 1.0).log(std::f32::consts::E)).sin()
+}
+
 #[derive(Default)]
 struct FeedbackWS {
     last_sample_l: f32,
     last_sample_r: f32,
 
     feedback: f32,
-    pow: f32,
-    
-    waveshape_points: usize,
-    waveshape_table: Vec<f32>,
+    parameter: f32,
+    gain: f32,
+    current_function: usize,
+    functions_len: usize,
 }
 
 impl Plugin for FeedbackWS {
@@ -21,79 +31,87 @@ impl Plugin for FeedbackWS {
         Info {
             name: "FeedbackWS".to_string(),
             unique_id: 5432,
-
             inputs: 2,
             outputs: 2,
-            parameters: 2,
+            parameters: 3,
             ..Default::default()
         }
     }
 
     fn get_parameter(&self, index: i32) -> f32 {
         match index {
-            0 => self.feedback,
-            1 => self.pow,
+            0 => self.current_function as f32 / FUNCTIONS.iter().len() as f32 ,
+            1 => self.parameter,
+            2 => self.feedback,
+            3 => self.gain,
             _ => 0.0,
         }
     }
 
     fn set_parameter(&mut self, index: i32, value: f32) {
         match index {
-            0 => self.feedback = value,
-            1 => self.pow = value,
+            0 => self.current_function = ((value - 0.001) * self.functions_len as f32) as usize,
+            1 => self.parameter = value,
+            2 => self.feedback = value,
+            3 => self.gain = value,
             _ => (),
+        }
+    }
+
+    fn get_parameter_name(&self, index: i32) -> String {
+        match index {
+            0 => "function".to_string(),
+            1 => "function parameter".to_string(),
+            2 => "feedback".to_string(),
+            3 => "gain".to_string(),
+            _ => "".to_string(),
+        }
+    }
+
+    fn get_parameter_text(&self, index: i32) -> String {
+        match index {
+            0 => match self.current_function {
+                0 => "analog",
+                1 => "sinelog",
+                _ => "unknown"
+            }.to_owned(),
+            1 => stringify!(self.parameter).to_string(),
+            2 => stringify!(self.feedback).to_string(),
+            3 => stringify!(self.gain).to_string(),
+            _ => "".to_string(),
         }
     }
 
     fn process(&mut self, buffer: AudioBuffer<f32>) {
         let (inputs, mut outputs) = buffer.split();
         for (chan_i, channel) in inputs.iter().enumerate() {
-            for (sam_i, sample) in channel.iter().enumerate() {
+            for sam_i in 0..channel.len() {
                 outputs[chan_i][sam_i] = self.dsp_fn(inputs[chan_i][sam_i], chan_i == 0);
             }
         }
     }
 
-    fn init(&mut self) {
-        self.last_sample_l = 0.0;
-        self.last_sample_r = 0.0;
-        self.feedback = 0.8;
-        self.pow = 2.0;
-        self.waveshape_points = 1000;
-        self.waveshape_table = vec![0.0; self.waveshape_points];
-        for i in 0..self.waveshape_points {
-            self.waveshape_table[i] = 
-            {
-                let x = i as f32 / self.waveshape_points as f32;
-                x.powf(self.pow)
-            };
-                
-        }
-    }
-
     fn new(_: HostCallback) -> Self {
-        let wsp = 100;
         FeedbackWS {
             last_sample_l: 0.0,
             last_sample_r: 0.0,
             feedback: 0.5,
-            pow: 2.0,
-            waveshape_points: wsp,
-            waveshape_table: vec![0.0; wsp],
+
+            parameter: 0.0,
+            current_function: 0,
+            gain: 0.5,
+
+            functions_len: FUNCTIONS.iter().len(),
         }
     }
 }
 
 impl FeedbackWS {
     fn dsp_fn(&mut self, input: f32, left: bool) -> f32 {
-        let neg_input = input < 0.0;
         let mut pipe = input;
         pipe += if left {self.last_sample_l} else {self.last_sample_r} * self.feedback;
-        pipe = if neg_input {-pipe} else {pipe};
-        if pipe <= 1.0 && pipe > 0.0 {
-            pipe = self.waveshape(pipe, left);
-        }
-        pipe = if neg_input {-pipe} else {pipe};
+        pipe *= self.gain;
+        pipe = self.waveshape(pipe, left);
         if left {
             self.last_sample_l = pipe;
         } else {
@@ -103,13 +121,7 @@ impl FeedbackWS {
     }
 
     fn waveshape(&self, input: f32, left: bool) -> f32 {
-        let float_index: f32 = input * (self.waveshape_points - 1) as f32;
-        let floor_index: f32 = float_index.floor();
-        let ceil_index:  f32 = float_index.ceil();
-        let ceil_frac:   f32 = floor_index - float_index;
-        let floor_frac:  f32 = 1.0 - floor_index;
-        self.waveshape_table[floor_index as usize] * floor_frac + 
-        self.waveshape_table[ceil_index  as usize] * ceil_frac
+        FUNCTIONS[self.current_function](input, self.parameter)
     }
 
 }

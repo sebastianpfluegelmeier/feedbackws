@@ -24,6 +24,7 @@ struct FeedbackWS {
     gain: f32,
     stereo: f32,
     stereo_freq: f32,
+    beta: f32,
     current_function: usize,
     functions_len: usize,
 }
@@ -35,7 +36,7 @@ impl Plugin for FeedbackWS {
             unique_id: 5432,
             inputs: 2,
             outputs: 2,
-            parameters: 5,
+            parameters: 7,
             ..Default::default()
         }
     }
@@ -48,6 +49,7 @@ impl Plugin for FeedbackWS {
             3 => self.gain,
             4 => self.stereo,
             5 => self.stereo_freq,
+            6 => self.beta,
             _ => 0.0,
         }
     }
@@ -60,6 +62,7 @@ impl Plugin for FeedbackWS {
             3 => self.gain = value,
             4 => self.stereo = value,
             5 => self.stereo_freq = value,
+            6 => self.beta = value,
             _ => (),
         }
     }
@@ -112,6 +115,7 @@ impl Plugin for FeedbackWS {
             gain: 0.5,
             stereo: 0.0,
             stereo_freq: 0.1,
+            beta: 0.99,
 
             functions_len: FUNCTIONS.iter().len(),
         }
@@ -125,10 +129,12 @@ impl FeedbackWS {
         pipe *= self.gain;
         pipe = self.waveshape(pipe);
         pipe = self.stereoshape(pipe, left);
+        let unfiltered = pipe;
+        pipe = self.hpf(pipe, left, 0.0001);
         if left {
-            self.last_sample_l = pipe;
+            self.last_sample_l = self.hpf(unfiltered, left, self.beta);
         } else {
-            self.last_sample_r = pipe;
+            self.last_sample_r = self.hpf(unfiltered, !left, self.beta);
         }
         return pipe;
     }
@@ -146,6 +152,10 @@ impl FeedbackWS {
                  * if left {1.0} else {-1.0}
     }
 
+    fn hpf(&self, input: f32, left: bool, beta: f32) -> f32 {
+        let last = if left {self.last_sample_l} else {self.last_sample_r};
+        input - (input * beta + last * (1.0 - beta))
+    }
 }
 
 plugin_main!(FeedbackWS);

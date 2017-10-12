@@ -7,11 +7,11 @@ use vst2::buffer::AudioBuffer;
 static FUNCTIONS: &'static [fn (f32, f32) -> f32] =  &[analog_dist, sin_log];
 
 fn analog_dist(sig: f32, param:f32) -> f32 {
-        2.0 * (1.0/(1.0 + std::f32::consts::E.powf(-param * sig))) - 1.0
+        2.0 * (1.0/(1.0 + std::f32::consts::E.powf(-param * sig * 10.0))) - 1.0
 }
 
 fn sin_log(sig: f32, param:f32) -> f32 {
-    (param*(sig + 1.0).log(std::f32::consts::E)).sin()
+    (30.0 * param*(sig + 1.0).ln()).sin()
 }
 
 #[derive(Default)]
@@ -22,6 +22,8 @@ struct FeedbackWS {
     feedback: f32,
     parameter: f32,
     gain: f32,
+    stereo: f32,
+    stereo_freq: f32,
     current_function: usize,
     functions_len: usize,
 }
@@ -33,7 +35,7 @@ impl Plugin for FeedbackWS {
             unique_id: 5432,
             inputs: 2,
             outputs: 2,
-            parameters: 4,
+            parameters: 5,
             ..Default::default()
         }
     }
@@ -44,6 +46,8 @@ impl Plugin for FeedbackWS {
             1 => self.parameter,
             2 => self.feedback,
             3 => self.gain,
+            4 => self.stereo,
+            5 => self.stereo_freq,
             _ => 0.0,
         }
     }
@@ -54,6 +58,8 @@ impl Plugin for FeedbackWS {
             1 => self.parameter = value,
             2 => self.feedback = value,
             3 => self.gain = value,
+            4 => self.stereo = value,
+            5 => self.stereo_freq = value,
             _ => (),
         }
     }
@@ -64,6 +70,8 @@ impl Plugin for FeedbackWS {
             1 => "function parameter".to_string(),
             2 => "feedback".to_string(),
             3 => "gain".to_string(),
+            4 => "stereo".to_string(),
+            5 => "stereo freq".to_string(),
             _ => "".to_string(),
         }
     }
@@ -78,6 +86,8 @@ impl Plugin for FeedbackWS {
             1 => stringify!(self.parameter).to_string(),
             2 => stringify!(self.feedback).to_string(),
             3 => stringify!(self.gain).to_string(),
+            4 => stringify!(self.stereo).to_string(),
+            5 => stringify!(self.stereo_freq).to_string(),
             _ => "".to_string(),
         }
     }
@@ -100,6 +110,8 @@ impl Plugin for FeedbackWS {
             parameter: 0.0,
             current_function: 0,
             gain: 0.5,
+            stereo: 0.0,
+            stereo_freq: 0.1,
 
             functions_len: FUNCTIONS.iter().len(),
         }
@@ -111,7 +123,8 @@ impl FeedbackWS {
         let mut pipe = input;
         pipe += if left {self.last_sample_l} else {self.last_sample_r} * self.feedback;
         pipe *= self.gain;
-        pipe = self.waveshape(pipe, left);
+        pipe = self.waveshape(pipe);
+        pipe = self.stereoshape(pipe, left);
         if left {
             self.last_sample_l = pipe;
         } else {
@@ -120,8 +133,17 @@ impl FeedbackWS {
         return pipe;
     }
 
-    fn waveshape(&self, input: f32, left: bool) -> f32 {
+    fn waveshape(&self, input: f32) -> f32 {
         FUNCTIONS[self.current_function](input, self.parameter)
+    }
+
+    fn stereoshape(&self, input: f32, left: bool) -> f32 {
+        input 
+            + (input 
+               * 1000.0 
+               * self.stereo_freq).sin() 
+                 * self.stereo 
+                 * if left {1.0} else {-1.0}
     }
 
 }

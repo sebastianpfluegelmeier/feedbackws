@@ -21,6 +21,7 @@ struct FeedbackWS {
 
     feedback: f32,
     parameter: f32,
+    gain: f32,
     current_function: usize,
     functions_len: usize,
 }
@@ -42,15 +43,17 @@ impl Plugin for FeedbackWS {
             0 => self.current_function as f32 / FUNCTIONS.iter().len() as f32 ,
             1 => self.parameter,
             2 => self.feedback,
+            3 => self.gain,
             _ => 0.0,
         }
     }
 
     fn set_parameter(&mut self, index: i32, value: f32) {
         match index {
-            0 => self.current_function = (value * self.functions_len as f32) as usize,
+            0 => self.current_function = ((value - 0.001) * self.functions_len as f32) as usize,
             1 => self.parameter = value,
             2 => self.feedback = value,
+            3 => self.gain = value,
             _ => (),
         }
     }
@@ -60,15 +63,21 @@ impl Plugin for FeedbackWS {
             0 => "function".to_string(),
             1 => "function parameter".to_string(),
             2 => "feedback".to_string(),
+            3 => "gain".to_string(),
             _ => "".to_string(),
         }
     }
 
     fn get_parameter_text(&self, index: i32) -> String {
         match index {
-            0 => "".to_owned(),
+            0 => match self.current_function {
+                0 => "analog",
+                1 => "sinelog",
+                _ => "unknown"
+            }.to_owned(),
             1 => stringify!(self.parameter).to_string(),
             2 => stringify!(self.feedback).to_string(),
+            3 => stringify!(self.gain).to_string(),
             _ => "".to_string(),
         }
     }
@@ -76,7 +85,7 @@ impl Plugin for FeedbackWS {
     fn process(&mut self, buffer: AudioBuffer<f32>) {
         let (inputs, mut outputs) = buffer.split();
         for (chan_i, channel) in inputs.iter().enumerate() {
-            for (sam_i, sample) in channel.iter().enumerate() {
+            for sam_i in 0..channel.len() {
                 outputs[chan_i][sam_i] = self.dsp_fn(inputs[chan_i][sam_i], chan_i == 0);
             }
         }
@@ -90,6 +99,7 @@ impl Plugin for FeedbackWS {
 
             parameter: 0.0,
             current_function: 0,
+            gain: 0.5,
 
             functions_len: FUNCTIONS.iter().len(),
         }
@@ -98,14 +108,10 @@ impl Plugin for FeedbackWS {
 
 impl FeedbackWS {
     fn dsp_fn(&mut self, input: f32, left: bool) -> f32 {
-        let neg_input = input < 0.0;
         let mut pipe = input;
         pipe += if left {self.last_sample_l} else {self.last_sample_r} * self.feedback;
-        pipe = if neg_input {-pipe} else {pipe};
-        if pipe <= 1.0 && pipe > 0.0 {
-            pipe = self.waveshape(pipe, left);
-        }
-        pipe = if neg_input {-pipe} else {pipe};
+        pipe *= self.gain;
+        pipe = self.waveshape(pipe, left);
         if left {
             self.last_sample_l = pipe;
         } else {

@@ -33,7 +33,7 @@ impl Plugin for FeedbackWS {
             unique_id: 5432,
             inputs: 2,
             outputs: 2,
-            parameters: 3,
+            parameters: 4,
             ..Default::default()
         }
     }

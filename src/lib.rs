@@ -20,7 +20,7 @@ fn sin_log(sig: f32, param:f32) -> f32 {
 }
 
 fn x_sin_x_squared(sig: f32, param: f32) -> f32 {
-    x * f32::sin(x.powi(2) + param * 3.0)
+    sig * f32::sin(sig.powi(2) + param * 3.0)
 }
 
 #[derive(Default)]

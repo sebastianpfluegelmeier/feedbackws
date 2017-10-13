@@ -4,7 +4,11 @@ extern crate vst2;
 use vst2::plugin::{Info, Plugin, HostCallback};
 use vst2::buffer::AudioBuffer;
 
-static FUNCTIONS: &'static [fn (f32, f32) -> f32] =  &[analog_dist, sin_log];
+static FUNCTIONS: &'static [(fn (f32, f32) -> f32, &str)] = 
+    &[
+        (analog_dist, "2(1/1+e^(-a*x)))-1"),
+        (sin_log, "sin(a*log(x+1))")
+    ];
 
 fn analog_dist(sig: f32, param:f32) -> f32 {
         2.0 * (1.0/(1.0 + std::f32::consts::E.powf(-param * sig * 10.0))) - 1.0
@@ -33,7 +37,7 @@ impl Plugin for FeedbackWS {
     fn get_info(&self) -> Info {
         Info {
             name: "FeedbackWS".to_string(),
-            unique_id: 5432,
+            unique_id: 543229834,
             inputs: 2,
             outputs: 2,
             parameters: 7,
@@ -81,11 +85,7 @@ impl Plugin for FeedbackWS {
 
     fn get_parameter_text(&self, index: i32) -> String {
         match index {
-            0 => match self.current_function {
-                0 => "analog",
-                1 => "sinelog",
-                _ => "unknown"
-            }.to_owned(),
+            0 => FUNCTIONS[self.current_function].1.to_string(),
             1 => stringify!(self.parameter).to_string(),
             2 => stringify!(self.feedback).to_string(),
             3 => stringify!(self.gain).to_string(),
@@ -140,7 +140,7 @@ impl FeedbackWS {
     }
 
     fn waveshape(&self, input: f32) -> f32 {
-        FUNCTIONS[self.current_function](input, self.parameter)
+        FUNCTIONS[self.current_function].0(input, self.parameter)
     }
 
     fn stereoshape(&self, input: f32, left: bool) -> f32 {

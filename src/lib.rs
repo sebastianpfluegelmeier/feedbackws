@@ -7,7 +7,8 @@ use vst2::buffer::AudioBuffer;
 static FUNCTIONS: &'static [(fn (f32, f32) -> f32, &str)] = 
     &[
         (analog_dist, "2(1/1+e^(-a*x)))-1"),
-        (sin_log, "sin(a*log(x+1))")
+        (sin_log, "sin(a*log(x+1))"),
+        (x_sin_x_squared, "x * sin(x^2 + a))"),
     ];
 
 fn analog_dist(sig: f32, param:f32) -> f32 {
@@ -16,6 +17,10 @@ fn analog_dist(sig: f32, param:f32) -> f32 {
 
 fn sin_log(sig: f32, param:f32) -> f32 {
     (30.0 * param*(sig + 1.0).ln()).sin()
+}
+
+fn x_sin_x_squared(sig: f32, param: f32) -> f32 {
+    x * f32::sin(x.powi(2) + param * 3.0)
 }
 
 #[derive(Default)]

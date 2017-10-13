@@ -10,7 +10,7 @@ Use a dc blocker and a limiter after this plugin. It can behave very unpredictab
 
 ## How to install FeedbackWS
 - open a terminal
-- type `git clone https://github.com/sebastianpfluegelmeier/feedbackws'
+- type `git clone https://github.com/sebastianpfluegelmeier/feedbackws`
 - enter the directory with `cd feedbackws`
 - type `cargo build`
 ### On Linux

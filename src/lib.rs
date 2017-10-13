@@ -4,19 +4,18 @@ extern crate vst2;
 use vst2::plugin::{Info, Plugin, HostCallback};
 use vst2::buffer::AudioBuffer;
 
-static FUNCTIONS: &'static [(fn (f32, f32) -> f32, &str)] = 
-    &[
-        (analog_dist, "2(1/1+e^(-a*x)))-1"),
-        (sin_log, "sin(a*log(x+1))"),
-        (x_sin_x_squared, "x * sin(x^2 + a))"),
-    ];
+static FUNCTIONS: &'static [(fn(f32, f32) -> f32, &str)] = &[
+    (analog_dist, "2(1/1+e^(-a*x)))-1"),
+    (sin_log, "sin(a*log(x+1))"),
+    (x_sin_x_squared, "x * sin(x^2 + a))"),
+];
 
-fn analog_dist(sig: f32, param:f32) -> f32 {
-        2.0 * (1.0/(1.0 + std::f32::consts::E.powf(-param * sig * 10.0))) - 1.0
+fn analog_dist(sig: f32, param: f32) -> f32 {
+    2.0 * (1.0 / (1.0 + std::f32::consts::E.powf(-param * sig * 10.0))) - 1.0
 }
 
-fn sin_log(sig: f32, param:f32) -> f32 {
-    (30.0 * param*(sig + 1.0).ln()).sin()
+fn sin_log(sig: f32, param: f32) -> f32 {
+    (30.0 * param * (sig + 1.0).ln()).sin()
 }
 
 fn x_sin_x_squared(sig: f32, param: f32) -> f32 {
@@ -52,7 +51,7 @@ impl Plugin for FeedbackWS {
 
     fn get_parameter(&self, index: i32) -> f32 {
         match index {
-            0 => self.current_function as f32 / FUNCTIONS.iter().len() as f32 ,
+            0 => self.current_function as f32 / FUNCTIONS.iter().len() as f32,
             1 => self.parameter,
             2 => self.feedback,
             3 => self.gain,
@@ -130,7 +129,11 @@ impl Plugin for FeedbackWS {
 impl FeedbackWS {
     fn dsp_fn(&mut self, input: f32, left: bool) -> f32 {
         let mut pipe = input;
-        pipe += if left {self.last_sample_l} else {self.last_sample_r} * self.feedback;
+        pipe += if left {
+            self.last_sample_l
+        } else {
+            self.last_sample_r
+        } * self.feedback;
         pipe *= self.gain;
         pipe = self.waveshape(pipe);
         pipe = self.stereoshape(pipe, left);
@@ -149,16 +152,16 @@ impl FeedbackWS {
     }
 
     fn stereoshape(&self, input: f32, left: bool) -> f32 {
-        input 
-            + (input 
-               * 1000.0 
-               * self.stereo_freq).sin() 
-                 * self.stereo 
-                 * if left {1.0} else {-1.0}
+        input +
+            (input * 1000.0 * self.stereo_freq).sin() * self.stereo * if left { 1.0 } else { -1.0 }
     }
 
     fn hpf(&self, input: f32, left: bool, beta: f32) -> f32 {
-        let last = if left {self.last_sample_l} else {self.last_sample_r};
+        let last = if left {
+            self.last_sample_l
+        } else {
+            self.last_sample_r
+        };
         input - (input * beta + last * (1.0 - beta))
     }
 }

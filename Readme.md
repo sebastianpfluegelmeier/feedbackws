@@ -1,5 +1,5 @@
 # FeedbackWS
-A waveshaper for people who like weird math functions and hate their ears.
+A waveshaper for people who like weird math functions, feedback cycles and hate their ears and speakers.
 
 ## What you need to install FeedbackWS
 - git

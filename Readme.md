@@ -11,6 +11,9 @@ A waveshaper for people who like weird math functions and hate their ears.
 - type `git clone https://github.com/sebastianpfluegelmeier/feedbackws'
 - enter the directory with `cd feedbackws`
 - type `cargo build`
-- on linux copy the artifact into the vst folder `sudo cp target/debug/libfeedbackws.so /usr/lib/lxvst`
-- on osx run the script `./osx_vst_bundler.sh FeedbackWS target/release/plugin.dylib` and copy
+### On Linux
+- copy the artifact into the vst folder `sudo cp target/debug/libfeedbackws.so /usr/lib/lxvst`
+### On OSX
+- copy the osx_vst_bundler.sh script to your current working directory
+- run the script `./osx_vst_bundler.sh FeedbackWS target/release/plugin.dylib` and copy
 the FeedbackWS.vst folder to your vst folder

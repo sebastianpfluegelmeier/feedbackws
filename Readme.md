@@ -4,7 +4,7 @@ A waveshaper for people who like weird math functions, feedback cycles and hate 
 ## What you need to install FeedbackWS
 - git
 - cargo
-- the [osx_vst_bundler.sh] https://github.com/overdrivenpotato/rust-vst2/blob/master/osx_vst_bundler.sh script if you are on a mac
+- the (https://github.com/overdrivenpotato/rust-vst2/blob/master/osx_vst_bundler.sh "osx_vst_bundler.sh") script if you are on a mac
 
 ## How to install FeedbackWS
 - open a terminal

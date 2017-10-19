@@ -8,7 +8,7 @@ static FUNCTIONS: &'static [(fn(f32, f32) -> f32, &str)] = &[
     (analog_dist,     "2(1/1+e^(-a*x)))-1"),
     (sin_log,         "sin(a*log(x+1))"),
     (x_sin_x_squared, "x * sin(x^2 + a))"),
-    (sin_fun,         "x * (a + (1 - a)) * (1 + sin(x * a * 200))"),
+    (sin_fun,         "a * x * (1 + sin(x * a * 50)) + (1 - a) * x"),
 ];
 
 fn analog_dist(sig: f32, param: f32) -> f32 {
@@ -24,7 +24,8 @@ fn x_sin_x_squared(sig: f32, param: f32) -> f32 {
 }
 
 fn sin_fun(sig: f32, param: f32) -> f32 {
-    sig * (param + (1.0 - param) * (1.0 + f32::sin(sig * param * 200.0)))   
+    param * sig * (param + (1.0 - param) * (1.0 + f32::sin(sig * param * 200.0))) 
+        + (1.0 - param) * sig
 }
 
 #[derive(Default)]

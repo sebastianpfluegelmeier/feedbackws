@@ -139,11 +139,7 @@ impl FeedbackWS {
 
     fn stereoshape(&self, input: f32, left: bool) -> f32 {
         input 
-            + (input 
-               * 1000.0 
-               * self.stereo_freq).sin() 
-                 * self.stereo 
-                 * if left {1.0} else {-1.0}
+            + (input 1000.0 self.stereo_freq).sin() self.stereo if left {1.0} else {-1.0}
     }
 
 }

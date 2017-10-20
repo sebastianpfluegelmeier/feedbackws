@@ -1,8 +1,10 @@
 #[macro_use]
 extern crate vst2;
 
-use vst2::plugin::{Info, Plugin, HostCallback};
+use vst2::plugin::{Info, Plugin, HostCallback, CanDo};
 use vst2::buffer::AudioBuffer;
+use vst2::event::Event;
+use vst2::api::Supported;
 
 /// Array of (waveshape function, descriptor string) tuples.
 static FUNCTIONS: &'static [(fn(f32, f32, f32) -> f32, &str)] = &[
@@ -34,6 +36,10 @@ fn fm_logis(sig: f32, a: f32, b: f32) -> f32 {
     2.0 * (1.0 / (1.0 + std::f32::consts::E.powf(-sig * a * f32::cos(b * 50.0/(2.0 * std::f32::consts::PI))))) - 1.0
 }
 
+fn midi_note_to_hz(note: u8) -> f64 {
+    (440.0/32.0) * (note as f64)
+}
+
 /// Main Plugin Struct
 #[derive(Default)]
 struct FeedbackWS {
@@ -52,6 +58,8 @@ struct FeedbackWS {
     current_function: usize,
     // length of FUNCTIONS array
     functions_len: usize,
+    sample_rate: f64,
+    notes: Vec<Option<u8>>,
 }
 
 impl Plugin for FeedbackWS {
@@ -79,6 +87,25 @@ impl Plugin for FeedbackWS {
         }
     }
 
+    fn process_events(&mut self, events: Vec<Event>) {
+        for event in events {
+            match event {
+                Event::Midi { data, .. } => self.process_event(data),
+                _ => {}
+            }
+        }
+    }
+
+    fn set_sample_rate(&mut self, rate: f32) {
+        self.sample_rate = rate as f64;
+    }
+
+    fn can_do(&self, can_do: CanDo) -> Supported {
+        match can_do {
+            CanDo::ReceiveMidiEvent => Supported::Yes,
+            _ => Supported::Maybe
+        }
+    }
 
     fn get_parameter(&self, index: i32) -> f32 {
         match index {
@@ -149,7 +176,9 @@ impl Plugin for FeedbackWS {
             stereo_color: 0.1,
             beta: 0.99,
 
+            sample_rate: 44100.0,
             functions_len: FUNCTIONS.iter().len(),
+            notes: Vec::new(),
         }
     }
 }
@@ -203,6 +232,36 @@ impl FeedbackWS {
             self.last_sample_r
         };
         input - (input * beta + last * (1.0 - beta))
+    }
+
+    fn time_per_sample(&self) -> f64 {
+        1.0 / self.sample_rate
+    }
+
+    fn process_event(&mut self, data: [u8; 3]) {
+        match data[0] {
+            128 => self.note_on(data[1]),
+            144 => self.note_off(data[1]),
+            _ => ()
+        }
+    }
+
+    fn note_on(&mut self, note: u8) {
+        for i in 0..self.notes.len() {
+            if let None = self.notes[i] {
+                self.notes[i] = Some(note);
+            }
+        }
+    }
+
+    fn note_off(&mut self, note: u8) {
+        for i in 0..self.notes.len() {
+            if let Some(x) = self.notes[i] {
+                if x == note {
+                    self.notes[i] = None;
+                }
+            }
+        }
     }
 }
 

@@ -4,6 +4,7 @@ extern crate vst2;
 use vst2::plugin::{Info, Plugin, HostCallback};
 use vst2::buffer::AudioBuffer;
 
+/// Array of (waveshape function, descriptor string) tuples.
 static FUNCTIONS: &'static [(fn(f32, f32, f32) -> f32, &str)] = &[
     (analog_dist,     "2(1/1+e^(-a*x)))-1"),
     (sin_log,         "sin(a*log(x+1))"),
@@ -12,6 +13,7 @@ static FUNCTIONS: &'static [(fn(f32, f32, f32) -> f32, &str)] = &[
     (fm_logis,        "2 * (1 / 1 + e ^ (-x * a * cos (b * 50 / (2 * pi)))) - 1"),
 ];
 
+// All waveshape functions
 fn analog_dist(sig: f32, a: f32, _: f32) -> f32 {
     2.0 * (1.0 / (1.0 + std::f32::consts::E.powf(-a * sig * 10.0))) - 1.0
 }
@@ -32,11 +34,14 @@ fn fm_logis(sig: f32, a: f32, b: f32) -> f32 {
     2.0 * (1.0 / (1.0 + std::f32::consts::E.powf(-sig * a * f32::cos(b * 50.0/(2.0 * std::f32::consts::PI))))) - 1.0
 }
 
+/// Main Plugin Struct
 #[derive(Default)]
 struct FeedbackWS {
+    // last output samples for feedback stuff
     last_sample_l: f32,
     last_sample_r: f32,
 
+    // input parameters
     feedback: f32,
     parameter_a: f32,
     parameter_b: f32,
@@ -45,6 +50,7 @@ struct FeedbackWS {
     stereo_color: f32,
     beta: f32,
     current_function: usize,
+    // length of FUNCTIONS array
     functions_len: usize,
 }
 
@@ -60,10 +66,14 @@ impl Plugin for FeedbackWS {
         }
     }
 
+    /// main processing function, gets audio buffers and writes into the output buffers.
     fn process(&mut self, buffer: AudioBuffer<f32>) {
         let (inputs, mut outputs) = buffer.split();
+        // iterate over channels
         for (chan_i, channel) in inputs.iter().enumerate() {
+            // iterate over samples
             for sam_i in 0..channel.len() {
+                // write dsp function output to the output buffer
                 outputs[chan_i][sam_i] = self.dsp_fn(inputs[chan_i][sam_i], chan_i == 0);
             }
         }
@@ -145,18 +155,26 @@ impl Plugin for FeedbackWS {
 }
 
 impl FeedbackWS {
+    /// main dsp function, takes a single sample and returns a single sample
+    /// the left argument is true if the sample is from the left chanel
     fn dsp_fn(&mut self, input: f32, left: bool) -> f32 {
         let mut pipe = input;
+        // feedback is added to the audio pipe
         pipe += if left {
             self.last_sample_l
         } else {
             self.last_sample_r
         } * self.feedback;
         pipe *= self.gain;
+        // waveshaping 
         pipe = self.waveshape(pipe);
+        // stereoshaping
         pipe = self.stereoshape(pipe, left);
+        // unfiltered signal is stored
         let unfiltered = pipe;
+        // hpf with very small beta value as DC blocker
         pipe = self.hpf(pipe, left, 0.0001);
+        // sample is stored as last_sample_x and gets highpass filtered before.
         if left {
             self.last_sample_l = self.hpf(unfiltered, left, self.beta);
         } else {
@@ -165,15 +183,19 @@ impl FeedbackWS {
         return pipe;
     }
 
+    /// waveshaping function
     fn waveshape(&self, input: f32) -> f32 {
         FUNCTIONS[self.current_function].0(input, self.parameter_a, self.parameter_b)
     }
 
+    /// stereoshaping function, adds a sinoid shaping which is invertet on the right channel for
+    /// stereo widht
     fn stereoshape(&self, input: f32, left: bool) -> f32 {
         input + (input * 1000.0 * self.stereo_color).sin() 
             * self.stereo_depth * if left { 1.0 } else { -1.0 }
     }
 
+    /// simple highpass filter
     fn hpf(&self, input: f32, left: bool, beta: f32) -> f32 {
         let last = if left {
             self.last_sample_l

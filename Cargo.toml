@@ -5,6 +5,7 @@ authors = ["Sebastian Pfluegelmeier <pfluegelmeier.s@gmx.at>"]
 
 [dependencies]
 vst2 = "0.0.1"
+dsp-chain = "0.13.1"
 
 [lib]
 name = "feedbackws"

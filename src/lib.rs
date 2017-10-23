@@ -1,10 +1,22 @@
 #[macro_use]
 extern crate vst2;
+extern crate dsp;
+
+mod input;
+mod output;
+mod waveshaper;
+mod stereoshaper;
 
 use vst2::plugin::{Info, Plugin, HostCallback};
 use vst2::buffer::AudioBuffer;
+use dsp::{Graph, Node};
 use std::f32::consts::PI;
 use std::f32::consts::E;
+use input::Input;
+use output::Output;
+use waveshaper::Waveshaper;
+use stereoshaper::Stereoshaper;
+
 
 /// Array of (waveshape function, descriptor string) tuples.
 static FUNCTIONS: &'static [(fn(f32, f32, f32, f32) -> f32, &str)] = &[
@@ -49,18 +61,23 @@ struct FeedbackWS {
     last_sample_r: f32,
 
     // input parameters
-    feedback: f32,
+    // length of FUNCTIONS array
     parameter_a: f32,
     parameter_b: f32,
     parameter_c: f32,
     gain: f32,
-    stereo_depth: f32,
-    stereo_color: f32,
     beta: f32,
+    feedback: f32,
+    stereo_color: f32,
+    stereo_depth: f32,
     current_function: usize,
-    // length of FUNCTIONS array
     functions_len: usize,
+    input: Input,
+    waveshaper: Waveshaper,
+    stereoshaper: Stereoshaper,
+    output: Output,
 }
+
 
 impl Plugin for FeedbackWS {
     fn get_info(&self) -> Info {
@@ -161,6 +178,10 @@ impl Plugin for FeedbackWS {
             stereo_depth: 0.0,
             stereo_color: 0.1,
             beta: 0.99,
+            input: Input::new(),
+            output: Output::new(),
+            stereoshaper: Stereoshaper::new(),
+            waveshaper: Waveshaper::new(),
 
             functions_len: FUNCTIONS.iter().len(),
         }

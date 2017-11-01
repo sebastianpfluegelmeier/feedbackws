@@ -6,39 +6,39 @@ use vst2::buffer::AudioBuffer;
 use std::f32::consts::PI;
 use std::f32::consts::E;
 
+const INPUT_CURVE: f32 =  5.0;
+
 /// Array of (waveshape function, descriptor string) tuples.
-static FUNCTIONS: &'static [(fn(f32, f32, f32, f32) -> f32, &str)] = &[
-    (analog_dist,     "2(1/1+e^(-a*x)))-1"),
-    (sin_log,         "sin(a*log(x+1))"),
-    (x_sin_x_squared, "x * sin(x^2 + a))"),
-    (sin_fun,         "x * (a + (1 - a)) * (1 + sin(x * b * 200))"),
-    (fm_logis,        "2 / 1 + e ^ (-x * a + b * sin (c * x * pi)) - 1"),
-    (sin_fm,          "sin(pi * x + b * sin(c * pi * x))"), 
+static FUNCTIONS: &'static [(fn(f32, f32, f32, f32, f32) -> f32, &str)] = &[
+    (sin_fm, "sin(pi * x + a * sin(b * pi * x))"),
+    (analog_dist, "(2/(1 + E ^ (-a * x)) - 1) / (2/(1 + E ^ (-a) - 1)"),
+    (sin_sqrt, "sin(a * (x + 1) ^ (1 / b) - a)")
 ];
 
 // All waveshape functions
-fn analog_dist(sig: f32, a: f32, _: f32, _: f32) -> f32 {
-    2.0 * (1.0 / (1.0 + E.powf(-a * sig * 10.0))) - 1.0
+fn sin_fm(x: f32, mut a: f32, mut b:f32, _:f32, _:f32) -> f32 {
+    a = input_logis(10.0 * a);
+    b = (b * 12.0).round();
+    f32::sin(PI * x + a * f32::sin(b * PI * x))
 }
 
-fn sin_log(sig: f32, a: f32, _: f32, _: f32) -> f32 {
-    (30.0 * a * (sig + 1.0).ln()).sin()
+fn analog_dist(x: f32, mut a: f32, _: f32, _: f32, _:f32) -> f32 {
+    a = 1.0 + (input_logis(a)*19.0);
+    (2.0/(1.0+E.powf(-a*x)) - 1.0)/(2.0/(1.0+E.powf(-a)) - 1.0)
 }
 
-fn x_sin_x_squared(sig: f32, a: f32, _: f32, _: f32) -> f32 {
-    sig * f32::sin((sig.powi(2) + a * 3.0))
+fn sin_sqrt(x: f32, mut a: f32, mut b:f32, _:f32, _:f32) -> f32 {
+    a = 3.0 + input_logis(a) * 97.0;
+    b = 2.0 + input_logis(b) * 7.0;
+    f32::sin(a * (x + 1.0).powf(1.0/b) - a)
 }
 
-fn sin_fun(sig: f32, a: f32, b: f32, _: f32) -> f32 {
-    sig * (a + (1.0 - a) * (1.0 + f32::sin(sig * b * 200.0)))   
-}
-
-fn fm_logis(sig: f32, a: f32, b: f32, c: f32) -> f32 {
-    2.0 / (1.0 + E.powf(-sig * a + b * f32::sin(c * sig/(c * sig * PI)))) - 1.0
-}
-
-fn sin_fm(sig: f32, _: f32, b: f32, c: f32) -> f32 {
-    f32::sin(PI * sig + b * f32::sin(c * PI * sig))
+// input curve function
+fn input_logis(x: f32) -> f32 {
+    let a = 1.0/(1.0 + E.powf(-INPUT_CURVE * (x - 0.5)));
+    let b = 1.0/(1.0 + E.powf(-INPUT_CURVE * -0.5));
+    let c = 1.0/(1.0 + E.powf(-INPUT_CURVE * 0.5));
+    (a - b)/(c - b)
 }
 
 /// Main Plugin Struct
@@ -53,6 +53,7 @@ struct FeedbackWS {
     parameter_a: f32,
     parameter_b: f32,
     parameter_c: f32,
+    parameter_d: f32,
     gain: f32,
     stereo_depth: f32,
     stereo_color: f32,
@@ -69,7 +70,7 @@ impl Plugin for FeedbackWS {
             unique_id: 543229834,
             inputs: 2,
             outputs: 2,
-            parameters: 9,
+            parameters: 10,
             ..Default::default()
         }
     }
@@ -94,11 +95,12 @@ impl Plugin for FeedbackWS {
             1 => self.parameter_a,
             2 => self.parameter_b,
             3 => self.parameter_c,
-            4 => self.feedback,
-            5 => self.gain,
-            6 => self.stereo_depth,
-            7 => self.stereo_color,
-            8 => self.beta,
+            4 => self.parameter_d,
+            5 => self.feedback,
+            6 => self.gain,
+            7 => self.stereo_depth,
+            8 => self.stereo_color,
+            9 => self.beta,
             _ => 0.0,
         }
     }
@@ -109,11 +111,12 @@ impl Plugin for FeedbackWS {
             1 => self.parameter_a = value,
             2 => self.parameter_b = value,
             3 => self.parameter_c = value,
-            4 => self.feedback = value,
-            5 => self.gain = value,
-            6 => self.stereo_depth = value,
-            7 => self.stereo_color = value,
-            8 => self.beta = value,
+            4 => self.parameter_d = value,
+            5 => self.feedback = value,
+            6 => self.gain = value,
+            7 => self.stereo_depth = value,
+            8 => self.stereo_color = value,
+            9 => self.beta = value,
             _ => (),
         }
     }
@@ -124,11 +127,12 @@ impl Plugin for FeedbackWS {
             1 => "parameter a".to_string(),
             2 => "parameter b".to_string(),
             3 => "parameter c".to_string(),
-            4 => "feedback".to_string(),
-            5 => "gain".to_string(),
-            6 => "stereo".to_string(),
-            7 => "stereo freq".to_string(),
-            8 => "beta".to_string(),
+            4 => "parameter d".to_string(),
+            5 => "feedback".to_string(),
+            6 => "gain".to_string(),
+            7 => "stereo".to_string(),
+            8 => "stereo freq".to_string(),
+            9 => "beta".to_string(),
             _ => "".to_string(),
         }
     }
@@ -139,10 +143,11 @@ impl Plugin for FeedbackWS {
             1 => stringify!(self.parameter_a).to_string(),
             2 => stringify!(self.parameter_b).to_string(),
             3 => stringify!(self.parameter_c).to_string(),
-            4 => stringify!(self.feedback).to_string(),
-            5 => stringify!(self.gain).to_string(),
-            6 => stringify!(self.stereo_depth).to_string(),
-            7 => stringify!(self.stereo_color).to_string(),
+            4 => stringify!(self.parameter_d).to_string(),
+            5 => stringify!(self.feedback).to_string(),
+            6 => stringify!(self.gain).to_string(),
+            7 => stringify!(self.stereo_depth).to_string(),
+            8 => stringify!(self.stereo_color).to_string(),
             _ => "".to_string(),
         }
     }
@@ -156,6 +161,7 @@ impl Plugin for FeedbackWS {
             parameter_a: 0.0,
             parameter_b: 0.0,
             parameter_c: 0.0,
+            parameter_d: 0.0,
             current_function: 0,
             gain: 0.5,
             stereo_depth: 0.0,
@@ -198,7 +204,7 @@ impl FeedbackWS {
 
     /// waveshaping function
     fn waveshape(&self, input: f32) -> f32 {
-        FUNCTIONS[self.current_function].0(input, self.parameter_a, self.parameter_b, self.parameter_c)
+        FUNCTIONS[self.current_function].0(input, self.parameter_a, self.parameter_b, self.parameter_c, self.parameter_d)
     }
 
     /// stereoshaping function, adds a sinoid shaping which is invertet on the right channel for

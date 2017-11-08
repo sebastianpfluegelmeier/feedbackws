@@ -53,4 +53,5 @@ vol_fader  = hslider("vol", 0, 0, 1, 0.001);
 freq_fader = hslider("freq", 100, 10, 1000, 0.001);
 gain_fader = hslider("gain", 0, 0, 1, 0.001);
 
+// main function
 process = (waveshaper(gain_fader * oscillators(freq_fader), a_fader, b_fader)) * vol_fader;
